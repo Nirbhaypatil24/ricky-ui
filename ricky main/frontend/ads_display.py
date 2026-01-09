@@ -63,8 +63,8 @@ class DriverInfoWidget(QFrame):
         lbl_name = QLabel(name.upper())
         lbl_name.setStyleSheet("color: white; font-size: 22px; font-weight: bold;")
         
-        # Add phone icon prefix
-        lbl_number = QLabel(f"📞 {number}")
+        # Replace Emoji with "ph :"
+        lbl_number = QLabel(f"ph : {number}")
         lbl_number.setStyleSheet("color: #34C759; font-size: 16px; font-weight: 500;")
         
         text_layout.addWidget(lbl_driver_title)
