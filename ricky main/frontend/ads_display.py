@@ -1,7 +1,7 @@
 """
 Ads/Map Display - Ricky Theme
 Dark container for rotating content
-Updated: Support for GIF Ads (ad_1.gif)
+Updated: Support for multiple GIF Ads (ad_1.gif, ad_2.gif)
 """
 
 import os
@@ -16,8 +16,8 @@ class AdsDisplayWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.current_index = 0
-        self.ad_duration = 7000
-        self.map_duration = 7000
+        self.ad_duration = 10000   # 10 seconds per ad
+        self.map_duration = 20000  # 20 seconds for map
         self.map_widget = MapDisplayWidget()
         
         self.setup_ui()
@@ -52,45 +52,22 @@ class AdsDisplayWidget(QWidget):
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         assets_path = os.path.join(base_path, 'assets')
         
-        # 1. Text Ad: Hungry?
-        self.ad1 = self.create_ad("🍔 HUNGRY?", "Order via Zomato • Swiggy", "#D32F2F")
+        # 1. First GIF Ad (ad_1.gif) - Akshay Kumar
+        gif_path_1 = os.path.join(assets_path, 'ad_1.gif')
+        self.ad_gif_1 = self.create_image_ad(gif_path_1)
         
-        # 2. Image/GIF Ad (ad_1.gif)
-        gif_path = os.path.join(assets_path, 'ad_1.gif')
-        self.ad_gif = self.create_image_ad(gif_path)
-        
-        # 3. Text Ad: Uber
-        self.ad2 = self.create_ad("⚡ FAST TRAVEL", "Book next ride on Uber", "#1976D2")
+        # 2. Second GIF Ad (ad_2.gif) - Amul
+        gif_path_2 = os.path.join(assets_path, 'ad_2.gif')
+        self.ad_gif_2 = self.create_image_ad(gif_path_2)
         
         # Add widgets to stack (Order must match load_content)
-        self.display_stack.addWidget(self.ad1)      # Index 0
-        self.display_stack.addWidget(self.ad_gif)   # Index 1
-        self.display_stack.addWidget(self.map_widget) # Index 2
-        self.display_stack.addWidget(self.ad2)      # Index 3
+        self.display_stack.addWidget(self.ad_gif_1)   # Index 0
+        self.display_stack.addWidget(self.map_widget) # Index 1
+        self.display_stack.addWidget(self.ad_gif_2)   # Index 2
         
         container_layout.addWidget(self.display_stack)
         layout.addWidget(container)
         self.setLayout(layout)
-    
-    def create_ad(self, title, subtitle, color):
-        """Create a standard text-based ad"""
-        frame = QFrame()
-        frame.setStyleSheet(f"background-color: {color}; border-radius: 10px;")
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignCenter)
-        
-        lbl_t = QLabel(title)
-        lbl_t.setStyleSheet("color: white; font-size: 42px; font-weight: bold; background: transparent;")
-        lbl_t.setAlignment(Qt.AlignCenter)
-        
-        lbl_s = QLabel(subtitle)
-        lbl_s.setStyleSheet("color: white; font-size: 24px; background: transparent;")
-        lbl_s.setAlignment(Qt.AlignCenter)
-        
-        layout.addWidget(lbl_t)
-        layout.addWidget(lbl_s)
-        frame.setLayout(layout)
-        return frame
 
     def create_image_ad(self, image_path):
         """Create an ad from an image or GIF"""
@@ -124,10 +101,9 @@ class AdsDisplayWidget(QWidget):
     def load_content(self):
         """Define the rotation sequence and duration"""
         self.content_items = [
-            {"type": "ad_text", "dur": self.ad_duration},    # 0: Hungry?
-            {"type": "ad_gif",  "dur": self.ad_duration},    # 1: ad_1.gif
-            {"type": "map",     "dur": self.map_duration},   # 2: Map
-            {"type": "ad_text", "dur": self.ad_duration}     # 3: Uber
+            {"type": "ad_1",    "dur": self.ad_duration},    # 0: ad_1.gif
+            {"type": "map",     "dur": self.map_duration},   # 1: Map
+            {"type": "ad_2",    "dur": self.ad_duration}     # 2: ad_2.gif
         ]
 
     def rotate_content(self):
