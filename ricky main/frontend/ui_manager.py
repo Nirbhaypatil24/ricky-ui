@@ -1,7 +1,7 @@
 """
 UI Manager - Ricky Theme (Split Screen Layout)
 Left: Operations | Right: Ads & Maps
-Fixed: SOS Animation (Blinking Effect)
+Fixed: SOS Indicator (CSS Circle instead of Emoji)
 """
 
 import sys
@@ -44,10 +44,9 @@ class SOSStatusWidget(QFrame):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(15, 10, 15, 10)
         
-        # Icon / LED
-        self.led = QLabel("🛡️")
-        self.led.setFont(QFont("Arial", 24))
-        self.led.setStyleSheet("background: transparent;")
+        # Icon / LED Indicator (Replaces Emoji)
+        self.led = QLabel()
+        self.led.setFixedSize(24, 24)
         
         # Text Stack
         text_layout = QVBoxLayout()
@@ -67,9 +66,20 @@ class SOSStatusWidget(QFrame):
         text_layout.addStretch()
         
         layout.addWidget(self.led)
-        layout.addSpacing(10)
+        layout.addSpacing(15)
         layout.addLayout(text_layout)
         layout.addStretch()
+        
+        # Apply initial LED style
+        self.set_led_color(THEME_SUCCESS)
+
+    def set_led_color(self, color, border_color="#333"):
+        """Helper to set LED color using CSS"""
+        self.led.setStyleSheet(f"""
+            background-color: {color};
+            border-radius: 12px; /* Half of 24px width */
+            border: 2px solid {border_color};
+        """)
 
     def set_normal_style(self):
         """Reset to safe dark style"""
@@ -85,24 +95,24 @@ class SOSStatusWidget(QFrame):
             self.main_lbl.setStyleSheet(f"color: {THEME_SUCCESS}; background: transparent; letter-spacing: 1px;")
             self.sub_lbl.setText("SOS READY")
             self.sub_lbl.setStyleSheet("color: #666; background: transparent;")
-            self.led.setText("🛡️")
+            self.set_led_color(THEME_SUCCESS) # Green LED
 
     def _flash_tick(self):
         """Toggle colors for flashing effect"""
         self.flash_state = not self.flash_state
         
         if self.flash_state:
-            # STATE 1: RED Background, WHITE Text
+            # STATE 1: RED Background, WHITE Text, WHITE LED
             self.setStyleSheet(f"background-color: {THEME_DANGER}; border-radius: 10px; border: 2px solid white;")
             self.main_lbl.setStyleSheet("color: white; background: transparent;")
             self.sub_lbl.setStyleSheet("color: white; background: transparent;")
-            self.led.setText("⚠️")
+            self.set_led_color("white", "red")
         else:
-            # STATE 2: WHITE Background, RED Text
+            # STATE 2: WHITE Background, RED Text, RED LED
             self.setStyleSheet(f"background-color: {THEME_ALERT_BG}; border-radius: 10px; border: 2px solid {THEME_DANGER};")
             self.main_lbl.setStyleSheet(f"color: {THEME_DANGER}; background: transparent;")
             self.sub_lbl.setStyleSheet(f"color: {THEME_DANGER}; background: transparent;")
-            self.led.setText("🚨")
+            self.set_led_color(THEME_DANGER, "white")
             
         # Ensure text stays updated
         self.main_lbl.setText(self.current_msg)
