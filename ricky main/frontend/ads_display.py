@@ -1,7 +1,7 @@
 """
 Ads/Map Display - Ricky Theme
 Dark container for rotating content
-Updated: Adds Driver Info Header above the Map view
+Updated: Bigger Driver Info & Full Size Map Container
 """
 
 import os
@@ -15,7 +15,8 @@ class DriverInfoWidget(QFrame):
     """Widget to display driver details and photo nicely"""
     def __init__(self, name, number, photo_path):
         super().__init__()
-        self.setFixedHeight(90) # Fixed height for header
+        # INCREASED HEIGHT (was 90)
+        self.setFixedHeight(140) 
         self.setStyleSheet("""
             QFrame {
                 background-color: #2C2C2E;
@@ -27,27 +28,28 @@ class DriverInfoWidget(QFrame):
 
     def setup_ui(self, name, number, photo_path):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 10, 15, 10)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(20)
 
-        # 1. Circular Photo
+        # 1. Circular Photo - INCREASED SIZE (was 70)
+        photo_size = 110
         photo_label = QLabel()
-        photo_label.setFixedSize(70, 70)
+        photo_label.setFixedSize(photo_size, photo_size)
         
         pixmap = QPixmap(photo_path)
         if pixmap.isNull():
             # Fallback if photo missing
-            pixmap = QPixmap(70, 70)
+            pixmap = QPixmap(photo_size, photo_size)
             pixmap.fill(QColor("#555555"))
         
         # Create circular mask for photo
-        circular_pixmap = QPixmap(70, 70)
+        circular_pixmap = QPixmap(photo_size, photo_size)
         circular_pixmap.fill(Qt.transparent)
         painter = QPainter(circular_pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setBrush(QBrush(pixmap.scaled(70, 70, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
+        painter.setBrush(QBrush(pixmap.scaled(photo_size, photo_size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
         painter.setPen(Qt.NoPen)
-        painter.drawEllipse(0, 0, 70, 70)
+        painter.drawEllipse(0, 0, photo_size, photo_size)
         painter.end()
         
         photo_label.setPixmap(circular_pixmap)
@@ -55,22 +57,24 @@ class DriverInfoWidget(QFrame):
 
         # 2. Text Details
         text_layout = QVBoxLayout()
-        text_layout.setSpacing(2)
+        text_layout.setSpacing(5)
+        text_layout.setAlignment(Qt.AlignVCenter)
         
         lbl_driver_title = QLabel("YOUR DRIVER")
-        lbl_driver_title.setStyleSheet("color: #8E8E93; font-size: 12px; font-weight: bold;")
+        # Increased font size
+        lbl_driver_title.setStyleSheet("color: #8E8E93; font-size: 16px; font-weight: bold; letter-spacing: 1px;")
         
         lbl_name = QLabel(name.upper())
-        lbl_name.setStyleSheet("color: white; font-size: 22px; font-weight: bold;")
+        # Increased font size (was 22px)
+        lbl_name.setStyleSheet("color: white; font-size: 32px; font-weight: bold;")
         
-        # Replace Emoji with "ph :"
         lbl_number = QLabel(f"ph : {number}")
-        lbl_number.setStyleSheet("color: #34C759; font-size: 16px; font-weight: 500;")
+        # Increased font size (was 16px)
+        lbl_number.setStyleSheet("color: #34C759; font-size: 24px; font-weight: 500;")
         
         text_layout.addWidget(lbl_driver_title)
         text_layout.addWidget(lbl_name)
         text_layout.addWidget(lbl_number)
-        text_layout.addStretch()
         
         layout.addLayout(text_layout)
         layout.addStretch()
@@ -122,7 +126,7 @@ class AdsDisplayWidget(QWidget):
         # --- Load Assets ---
         gif_path_1 = os.path.join(self.assets_path, 'ad_1.gif')
         gif_path_2 = os.path.join(self.assets_path, 'ad_2.gif')
-        driver_photo_path = os.path.join(self.assets_path, 'driver_photo.jpg')
+        driver_photo_path = os.path.join(self.assets_path, 'driver_pic.avif')
 
         # --- Create Stack Views ---
         
@@ -130,7 +134,6 @@ class AdsDisplayWidget(QWidget):
         self.ad_gif_1 = self.create_image_ad(gif_path_1)
         
         # View 2: Driver Info + Map Combined View
-        # We create a container to hold both widgets vertically
         map_view_container = QWidget()
         map_view_layout = QVBoxLayout(map_view_container)
         map_view_layout.setContentsMargins(0, 0, 0, 0)
@@ -144,7 +147,8 @@ class AdsDisplayWidget(QWidget):
         )
         
         map_view_layout.addWidget(self.driver_header)
-        map_view_layout.addWidget(self.map_widget)
+        # Add map widget with stretch factor to fill remaining space
+        map_view_layout.addWidget(self.map_widget, 1)
         
         # View 3: Second GIF Ad (ad_2.gif)
         self.ad_gif_2 = self.create_image_ad(gif_path_2)
