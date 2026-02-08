@@ -2,7 +2,7 @@
 """
 Ricky Smart Autometer System
 Main entry point for the application
-Updated: Intro Animation with Debugging
+Updated: Separate videos for Intro (Startup) and Loading (Mode Switch)
 """
 
 import sys
@@ -22,18 +22,16 @@ def setup_display():
 
 setup_display()
 
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout
 from PyQt5.QtCore import QTimer, Qt, QUrl, pyqtSignal
 
-# Import Multimedia for Intro Video
+# Import Multimedia for Intro/Loading Videos
 try:
     from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
     from PyQt5.QtMultimediaWidgets import QVideoWidget
     MULTIMEDIA_AVAILABLE = True
-    print("✅ PyQt5 Multimedia module loaded.")
-except ImportError as e:
-    print(f"⚠️ PyQt5.QtMultimedia import failed: {e}")
-    print("   -> Try installing: sudo apt-get install python3-pyqt5.qtmultimedia libqt5multimedia5-plugins")
+except ImportError:
+    print("⚠️ PyQt5.QtMultimedia not found. Install 'python3-pyqt5.qtmultimedia'")
     MULTIMEDIA_AVAILABLE = False
 
 # Add project root to Python path
@@ -46,8 +44,8 @@ from backend.fare_calculator import FareCalculator
 from backend.mode_controller import ModeController
 from backend.sos_system import SOSSystem
 
-class IntroWindow(QWidget):
-    """Fullscreen Intro Animation Window"""
+class VideoWindow(QWidget):
+    """Fullscreen Video Window for Intro or Loading"""
     finished = pyqtSignal()
 
     def __init__(self, video_path):
@@ -65,35 +63,27 @@ class IntroWindow(QWidget):
         self.player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.player.setVideoOutput(self.video_widget)
         
-        # Connect signals
         self.player.mediaStatusChanged.connect(self._check_status)
         self.player.error.connect(self._handle_error)
         
-        # Load Content
         if os.path.exists(video_path):
-            print(f"🎬 Loading intro video from: {video_path}")
             self.player.setMedia(QMediaContent(QUrl.fromLocalFile(video_path)))
         else:
-            print(f"❌ Video file NOT found at: {video_path}")
-            # Emit finished immediately to not block app
+            print(f"❌ Video file missing: {video_path}")
             QTimer.singleShot(100, self.finished.emit)
 
     def start(self):
-        print("🎬 Starting playback...")
         self.player.play()
         
     def _check_status(self, status):
         if status == QMediaPlayer.EndOfMedia:
-            print("🎬 Intro video finished.")
             self.finished.emit()
         elif status == QMediaPlayer.InvalidMedia:
-            print("⚠️ Invalid media format.")
             self.finished.emit()
             
     def _handle_error(self):
-        err_msg = self.player.errorString()
-        print(f"❌ Intro playback error: {err_msg}")
-        self.finished.emit() 
+        print(f"❌ Video error: {self.player.errorString()}")
+        self.finished.emit()
 
 class RickyAutometer:
     def __init__(self):
@@ -101,10 +91,18 @@ class RickyAutometer:
             self.app = QApplication(sys.argv)
             self.app.setApplicationName("Ricky Autometer")
         except Exception as e:
-            print(f"⚠️ Qt display issue, trying offscreen: {e}")
+            print(f"⚠️ Qt display error: {e}")
             os.environ['QT_QPA_PLATFORM'] = 'offscreen'
             self.app = QApplication(sys.argv)
         
+        # State flags
+        self.boot_complete = False
+        
+        # Define Paths for Videos
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        self.intro_path = os.path.join(base_path, 'assets', 'intro.mp4')
+        self.loading_path = os.path.join(base_path, 'assets', 'load.mp4')
+
         # Initialize Backend
         self.gpio_manager = GPIOManager()
         self.gps_manager = GPSManager()
@@ -123,50 +121,68 @@ class RickyAutometer:
         signal.signal(signal.SIGINT, self.signal_handler)
 
     def setup_connections(self):
+        # 1. Update UI Mode (happens behind the video)
         self.mode_controller.mode_changed.connect(self.ui.update_mode)
+        
+        # 2. Play Loading Video on Mode Change
+        self.mode_controller.mode_changed.connect(self.play_mode_transition)
+        
+        # Other connections
         self.gpio_manager.passenger_changed.connect(self.ui.update_passenger)
         self.gpio_manager.passenger_changed.connect(self.fare_calculator.handle_passenger_change)
         self.sos_system.sos_status_changed.connect(self.ui.update_sos_status)
         self.fare_calculator.fare_updated.connect(self.ui.update_fares)
 
+    def play_mode_transition(self, mode_name):
+        """Plays 'load.mp4' as a loading screen when mode changes"""
+        # Only play if boot is done AND we have the loading video
+        if self.boot_complete and MULTIMEDIA_AVAILABLE and os.path.exists(self.loading_path):
+            print(f"🎬 Switching to {mode_name}: Playing loading animation...")
+            
+            # Close existing loader if any
+            if hasattr(self, 'loading_window') and self.loading_window.isVisible():
+                self.loading_window.close()
+
+            # Create and play new loader
+            self.loading_window = VideoWindow(self.loading_path)
+            self.loading_window.finished.connect(self.loading_window.close)
+            self.loading_window.finished.connect(self.loading_window.deleteLater)
+            self.loading_window.start()
+        else:
+            print(f"ℹ️ Mode switched to {mode_name} (No loading video played)")
+
     def run(self):
-        """Start the application logic"""
-        # Start backend threads
+        """Start the application"""
+        # Start backend
         self.gpio_manager.start()
         self.gps_manager.start()
         self.fare_calculator.start()
         self.mode_controller.start()
         self.sos_system.start()
         
-        # --- INTRO VIDEO LOGIC ---
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        intro_path = os.path.join(base_path, 'assets', 'intro.mp4')
-        
-        print(f"🔍 Checking for intro video at: {intro_path}")
-        
-        if MULTIMEDIA_AVAILABLE and os.path.exists(intro_path):
-            print("✅ Video found & Multimedia available. Launching Intro...")
-            self.intro = IntroWindow(intro_path)
-            self.intro.finished.connect(self.show_main_ui)
-            self.intro.start()
+        # --- BOOT ANIMATION (INTRO.MP4) ---
+        if MULTIMEDIA_AVAILABLE and os.path.exists(self.intro_path):
+            print("🚀 Booting up... Playing Intro.")
+            self.boot_window = VideoWindow(self.intro_path)
+            self.boot_window.finished.connect(self.finish_boot_sequence)
+            self.boot_window.start()
         else:
-            if not MULTIMEDIA_AVAILABLE:
-                print("⚠️ Skipping intro: Multimedia module missing.")
-            if not os.path.exists(intro_path):
-                print("⚠️ Skipping intro: File 'assets/intro.mp4' not found.")
-            
-            self.show_main_ui()
+            print("ℹ️ Intro video skipped (missing file or module).")
+            self.finish_boot_sequence()
             
         return self.app.exec_()
 
-    def show_main_ui(self):
-        """Transition to main UI"""
-        if hasattr(self, 'intro'):
-            self.intro.close()
-            self.intro.deleteLater() # Cleanup
+    def finish_boot_sequence(self):
+        """Called when boot video finishes"""
+        if hasattr(self, 'boot_window'):
+            self.boot_window.close()
         
-        print("🚀 Launching Main GUI")
+        print("✅ Boot complete. Showing Main UI.")
         self.ui.showFullScreen()
+        
+        # Enable mode-switch videos after a short delay
+        # This prevents the "Loading" video from triggering immediately on startup
+        QTimer.singleShot(2000, lambda: setattr(self, 'boot_complete', True))
 
     def signal_handler(self, signum, frame):
         print("\n🛑 Shutdown signal received...")
